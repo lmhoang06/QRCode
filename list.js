@@ -1,6 +1,9 @@
 import { getBlocksData, saveBlocksData, deleteBlock, deleteMultipleBlocks } from './utils/storage.js';
 import { Notification } from './components/notification.js';
 import { logout, getCurrentUser } from './utils/auth.js';
+import { generateQRCode } from './utils/qrGenerator.js';
+
+var global_deleteBlock = deleteBlock;
 
 document.addEventListener('DOMContentLoaded', () => {
     // DOM Elements
@@ -266,7 +269,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 // Chất liệu và màu sắc
                 const chatLieuCell = row.insertCell();
-                
                 if (block.chatLieu && block.mauSac) {
                     // Hiển thị màu sắc dưới dạng mẫu màu
                     const colorSample = block.mauSac.maMau ? 
@@ -296,6 +298,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 viewButton.className = 'action-btn view-btn';
                 viewButton.dataset.id = block.id;
                 
+                // Add event listeners for the view button preview
+                viewButton.addEventListener('mouseenter', () => createBlockPreview(viewButton, block));
+                viewButton.addEventListener('mouseleave', removeBlockPreview);
+                
                 const qrButton = document.createElement('button');
                 qrButton.innerHTML = '<i class="fas fa-qrcode"></i>';
                 qrButton.title = 'Xem mã QR';
@@ -312,16 +318,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 actionCell.appendChild(qrButton);
                 actionCell.appendChild(deleteButton);
                 
-                // Show preview on hover
-                row.addEventListener('mouseenter', () => createBlockPreview(row, block));
-                row.addEventListener('mouseleave', removeBlockPreview);
+                // Remove row hover event since we're now using button hover
+                // row.addEventListener('mouseenter', () => createBlockPreview(row, block));
+                // row.addEventListener('mouseleave', removeBlockPreview);
             });
         }
         
         // Update selected count
         updateSelectedCount();
     }
-    
+
     // Handle checkbox change
     function handleCheckboxChange(event) {
         const id = parseInt(event.target.dataset.id);
@@ -373,7 +379,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     // Create block preview on hover
-    function createBlockPreview(row, block) {
+    function createBlockPreview(element, block) {
         // Remove any existing previews
         removeBlockPreview();
         
@@ -455,33 +461,23 @@ document.addEventListener('DOMContentLoaded', () => {
         previewContent += '</div>'; // Close preview-details
         preview.innerHTML = previewContent;
         
-        // Position the preview
-        const rect = row.getBoundingClientRect();
-        const viewportWidth = window.innerWidth;
-        const viewportHeight = window.innerHeight;
-        
-        // Calculate ideal position
-        let left = rect.right + 20;
-        let top = rect.top + window.scrollY;
-        
         // Add to document to get actual dimensions
         preview.style.visibility = 'hidden';
         document.body.appendChild(preview);
         const previewRect = preview.getBoundingClientRect();
         
-        // Adjust position if would go out of viewport
-        if (left + previewRect.width > viewportWidth) {
-            left = Math.max(10, rect.left - previewRect.width - 20);
-        }
+        // Position the preview in the center of the viewport
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
         
-        // Adjust vertical position if needed
-        if (top + previewRect.height > window.scrollY + viewportHeight) {
-            top = Math.max(window.scrollY + 10, window.scrollY + viewportHeight - previewRect.height - 10);
-        }
+        const left = (viewportWidth - previewRect.width) / 2;
+        const top = window.scrollY + (viewportHeight - previewRect.height) / 2;
         
         // Apply calculated position
-        preview.style.left = `${left}px`;
-        preview.style.top = `${top}px`;
+        preview.style.left = `${Math.max(10, left)}px`;
+        preview.style.top = `${Math.max(10, top)}px`;
+        preview.style.position = 'fixed'; // Use fixed position to keep it centered on screen
+        preview.style.zIndex = '1000';
         preview.style.visibility = 'visible';
         
         // Add event listeners to preview buttons
@@ -510,14 +506,450 @@ document.addEventListener('DOMContentLoaded', () => {
             existingPreview.remove();
         }
     }
+    
+    // Display block details in a modal
+    function viewBlockDetail(block) {
+        // Remove any existing modals first
+        const existingModal = document.querySelector('.modal.block-detail-modal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+        
+        // Create modal container
+        const modal = document.createElement('div');
+        modal.className = 'modal block-detail-modal';
+        
+        // Create modal content
+        const modalContent = document.createElement('div');
+        modalContent.className = 'modal-content';
+        modalContent.style.maxWidth = '700px';
+        
+        // Add close button
+        const closeBtn = document.createElement('span');
+        closeBtn.innerHTML = '&times;';
+        closeBtn.className = 'close-btn';
+        closeBtn.title = 'Đóng';
+        
+        // Add modal header with block name
+        const modalHeader = document.createElement('h2');
+        modalHeader.innerHTML = `<i class="fas fa-cube"></i> ${block.tenKhoi}`;
+        modalHeader.style.borderBottom = '1px solid var(--border-color)';
+        modalHeader.style.paddingBottom = '10px';
+        modalHeader.style.marginBottom = '20px';
+        
+        // Create content sections
+        const detailsContainer = document.createElement('div');
+        detailsContainer.className = 'block-detail-content';
+        
+        // Basic information section
+        const basicInfo = document.createElement('div');
+        basicInfo.className = 'detail-section';
+        basicInfo.innerHTML = `
+            <h3><i class="fas fa-info-circle"></i> Thông tin cơ bản</h3>
+            <div class="detail-grid">
+                <div class="detail-item">
+                    <span class="detail-label">ID</span>
+                    <span class="detail-value">${block.id}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Loại khối</span>
+                    <span class="detail-value">${getBlockTypeIcon(block.loaiKhoi)} ${block.loaiKhoi}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Cân nặng</span>
+                    <span class="detail-value">${block.canNang} ${block.donViCanNang || 'g'}</span>
+                </div>
+            </div>
+        `;
+        
+        // Dimensions section if available
+        let dimensionsSection = '';
+        if (block.kichThuoc && (block.kichThuoc.dai || block.kichThuoc.rong || block.kichThuoc.cao)) {
+            dimensionsSection = `
+                <div class="detail-section">
+                    <h3><i class="fas fa-ruler-combined"></i> Kích thước</h3>
+                    <div class="detail-grid">
+                        ${block.kichThuoc.dai ? `
+                        <div class="detail-item">
+                            <span class="detail-label">Chiều dài</span>
+                            <span class="detail-value">${block.kichThuoc.dai} cm</span>
+                        </div>` : ''}
+                        ${block.kichThuoc.rong ? `
+                        <div class="detail-item">
+                            <span class="detail-label">Chiều rộng</span>
+                            <span class="detail-value">${block.kichThuoc.rong} cm</span>
+                        </div>` : ''}
+                        ${block.kichThuoc.cao ? `
+                        <div class="detail-item">
+                            <span class="detail-label">Chiều cao</span>
+                            <span class="detail-value">${block.kichThuoc.cao} cm</span>
+                        </div>` : ''}
+                    </div>
+                    ${(block.kichThuoc.dai && block.kichThuoc.rong && block.kichThuoc.cao) ? `
+                    <div class="detail-item" style="margin-top: 10px;">
+                        <span class="detail-label">Thể tích</span>
+                        <span class="detail-value">${(block.kichThuoc.dai * block.kichThuoc.rong * block.kichThuoc.cao).toFixed(2)} cm³</span>
+                    </div>` : ''}
+                </div>
+            `;
+        }
+        
+        // Material and color section if available
+        let materialSection = '';
+        if (block.chatLieu || (block.mauSac && (block.mauSac.moTa || block.mauSac.maMau))) {
+            materialSection = `
+                <div class="detail-section">
+                    <h3><i class="fas fa-palette"></i> Vật liệu & Màu sắc</h3>
+                    <div class="detail-grid">
+                        ${block.chatLieu ? `
+                        <div class="detail-item">
+                            <span class="detail-label">Chất liệu</span>
+                            <span class="detail-value">${block.chatLieu}</span>
+                        </div>` : ''}
+                        ${block.mauSac && block.mauSac.moTa ? `
+                        <div class="detail-item">
+                            <span class="detail-label">Màu sắc</span>
+                            <span class="detail-value">${block.mauSac.moTa}</span>
+                        </div>` : ''}
+                    </div>
+                    ${block.mauSac && block.mauSac.maMau ? `
+                    <div class="color-display" style="margin-top: 15px; display: flex; align-items: center; gap: 10px;">
+                        <div style="width: 40px; height: 40px; border-radius: 50%; background-color: ${block.mauSac.maMau}; border: 1px solid var(--border-color);"></div>
+                        <span class="color-code">${block.mauSac.maMau}</span>
+                    </div>` : ''}
+                </div>
+            `;
+        }
+        
+        // Description section if available
+        let descriptionSection = '';
+        if (block.moTa) {
+            descriptionSection = `
+                <div class="detail-section">
+                    <h3><i class="fas fa-align-left"></i> Mô tả</h3>
+                    <div class="block-description">
+                        ${block.moTa}
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Action buttons
+        const actionButtons = `
+            <div class="modal-actions">
+                <button id="viewQrBtn" class="btn accent-btn"><i class="fas fa-qrcode"></i> Xem mã QR</button>
+                <button id="downloadJsonBtn" class="btn secondary-btn"><i class="fas fa-download"></i> Tải JSON</button>
+                <button id="deleteBlockBtn" class="btn danger-btn"><i class="fas fa-trash"></i> Xóa khối</button>
+            </div>
+        `;
+        
+        // Assemble all sections
+        detailsContainer.innerHTML = basicInfo.outerHTML + 
+            dimensionsSection + 
+            materialSection + 
+            descriptionSection +
+            actionButtons;
+        
+        // Assemble the modal
+        modalContent.appendChild(closeBtn);
+        modalContent.appendChild(modalHeader);
+        modalContent.appendChild(detailsContainer);
+        
+        modal.appendChild(modalContent);
+        document.body.appendChild(modal);
+        
+        // Add event listeners
+        
+        // Close modal when clicking the X button
+        closeBtn.addEventListener('click', () => {
+            modal.remove();
+        });
+        
+        // Close modal when clicking outside
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.remove();
+            }
+        });
+        
+        // View QR button
+        const viewQrBtn = document.getElementById('viewQrBtn');
+        if (viewQrBtn) {
+            viewQrBtn.addEventListener('click', () => {
+                showQRModal(block, true); // Pass true to indicate it's opened from block detail modal
+            });
+        }
+        
+        // Download JSON button
+        const downloadJsonBtn = document.getElementById('downloadJsonBtn');
+        if (downloadJsonBtn) {
+            downloadJsonBtn.addEventListener('click', () => {
+                const jsonString = JSON.stringify(block, null, 2);
+                const blob = new Blob([jsonString], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `thong_tin_khoi_${block.id}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            });
+        }
+        
+        // Delete block button
+        const deleteBlockBtn = document.getElementById('deleteBlockBtn');
+        if (deleteBlockBtn) {
+            deleteBlockBtn.addEventListener('click', () => {
+                if (confirm(`Bạn có chắc chắn muốn xóa khối "${block.tenKhoi}"?`)) {
+                    modal.remove();
+                    deleteBlock(block.id);
+                }
+            });
+        }
+    }
+    
+    // Display QR code for a block in a modal
+    function showQRModal(block, fromDetailModal = false) {
+        // Remove any existing QR modals
+        const existingQRModal = document.querySelector('.modal.qr-modal');
+        if (existingQRModal) {
+            existingQRModal.remove();
+        }
+        
+        // Create modal container
+        const modal = document.createElement('div');
+        modal.className = 'modal qr-modal';
+        
+        // Create modal content with increased width
+        const modalContent = document.createElement('div');
+        modalContent.className = 'modal-content';
+        modalContent.style.maxWidth = '800px'; // Increased width to prevent horizontal scrolling
+        modalContent.style.width = '90%'; // Use percentage for responsiveness
+        
+        // Add close button
+        const closeBtn = document.createElement('span');
+        closeBtn.innerHTML = '&times;';
+        closeBtn.className = 'close-btn';
+        closeBtn.title = 'Đóng';
+        
+        // Add modal header
+        const modalHeader = document.createElement('h2');
+        modalHeader.innerHTML = '<i class="fas fa-qrcode"></i> Mã QR khối';
+        modalHeader.style.width = '100%';
+        modalHeader.style.marginBottom = '20px';
+        modalHeader.style.paddingBottom = '10px';
+        modalHeader.style.borderBottom = '1px solid var(--border-color)';
+        
+        // Create columns container
+        const columnsContainer = document.createElement('div');
+        columnsContainer.style.display = 'flex';
+        columnsContainer.style.flexDirection = 'row';
+        columnsContainer.style.gap = '20px';
+        columnsContainer.style.width = '100%';
+        
+        // Create left section
+        const leftSection = document.createElement('div');
+        leftSection.className = 'modal-left-section';
+        leftSection.style.flex = '1';
+        leftSection.style.minWidth = '250px';
+        
+        // Create right section
+        const rightSection = document.createElement('div');
+        rightSection.className = 'modal-right-section';
+        rightSection.style.flex = '1';
+        rightSection.style.display = 'flex';
+        rightSection.style.flexDirection = 'column';
+        rightSection.style.alignItems = 'center';
+        rightSection.style.justifyContent = 'center';
+        
+        // Add block summary to left section
+        const blockSummary = document.createElement('div');
+        blockSummary.className = 'qr-block-summary';
+        blockSummary.innerHTML = `
+            <h3>${block.tenKhoi}</h3>
+            <div class="summary-details">
+                <p><strong>ID:</strong> ${block.id}</p>
+                <p><strong>Loại:</strong> ${block.loaiKhoi}</p>
+                <p><strong>Cân nặng:</strong> ${block.canNang} ${block.donViCanNang || 'g'}</p>
+            </div>
+        `;
+        
+        // Add additional details if available
+        if (block.kichThuoc && (block.kichThuoc.dai || block.kichThuoc.rong || block.kichThuoc.cao)) {
+            let dimensions = '<p><strong>Kích thước:</strong> ';
+            if (block.kichThuoc.dai) dimensions += `D: ${block.kichThuoc.dai}cm `;
+            if (block.kichThuoc.rong) dimensions += `R: ${block.kichThuoc.rong}cm `;
+            if (block.kichThuoc.cao) dimensions += `C: ${block.kichThuoc.cao}cm`;
+            dimensions += '</p>';
+            
+            blockSummary.querySelector('.summary-details').innerHTML += dimensions;
+        }
+        
+        if (block.chatLieu) {
+            blockSummary.querySelector('.summary-details').innerHTML += 
+                `<p><strong>Chất liệu:</strong> ${block.chatLieu}</p>`;
+        }
+        
+        if (block.moTa) {
+            blockSummary.querySelector('.summary-details').innerHTML += 
+                `<p><strong>Mô tả:</strong> ${block.moTa}</p>`;
+        }
+        
+        // Add JSON toggle button and preview to left section
+        const jsonToggleBtn = document.createElement('button');
+        jsonToggleBtn.className = 'btn tertiary-btn json-toggle-btn';
+        jsonToggleBtn.innerHTML = '<i class="fas fa-code"></i> Hiển thị JSON';
+        jsonToggleBtn.style.marginTop = '15px';
+        
+        const jsonPreview = document.createElement('pre');
+        jsonPreview.className = 'json-preview hidden';
+        jsonPreview.textContent = JSON.stringify(block, null, 2);
+        
+        // Create QR container for right section
+        const qrContainer = document.createElement('div');
+        qrContainer.className = 'qr-container-large';
+        
+        // Generate QR code
+        generateQRCode(qrContainer, block);
+        
+        // Add help text to right section
+        const qrInfo = document.createElement('p');
+        qrInfo.className = 'qr-info';
+        qrInfo.textContent = 'Quét mã QR này để xem thông tin về khối này.';
+        qrInfo.style.textAlign = 'center';
+        
+        // Add action buttons to right section
+        const modalActions = document.createElement('div');
+        modalActions.className = 'qr-modal-actions';
+        modalActions.style.marginTop = '15px';
+        
+        const downloadJsonBtn = document.createElement('button');
+        downloadJsonBtn.className = 'btn secondary-btn';
+        downloadJsonBtn.innerHTML = '<i class="fas fa-download"></i> Tải JSON';
+        
+        const downloadQrBtn = document.createElement('button');
+        downloadQrBtn.className = 'btn accent-btn';
+        downloadQrBtn.innerHTML = '<i class="fas fa-qrcode"></i> Tải QR code';
+                
+        // Assemble the modal
+        modalActions.appendChild(downloadJsonBtn);
+        modalActions.appendChild(downloadQrBtn);
+        
+        // Add elements to left section
+        leftSection.appendChild(blockSummary);
+        leftSection.appendChild(jsonToggleBtn);
+        leftSection.appendChild(jsonPreview);
+        
+        // Add elements to right section
+        rightSection.appendChild(qrContainer);
+        rightSection.appendChild(qrInfo);
+        rightSection.appendChild(modalActions);
+        
+        // Add both sections to the columns container
+        columnsContainer.appendChild(leftSection);
+        columnsContainer.appendChild(rightSection);
+        
+        // Assemble the final modal structure
+        modalContent.appendChild(closeBtn);
+        modalContent.appendChild(modalHeader); // Header is directly under modalContent
+        modalContent.appendChild(columnsContainer); // Columns container contains both sections
+        
+        // At smaller screen sizes, stack the sections vertically
+        const mediaQuery = document.createElement('style');
+        mediaQuery.textContent = `
+            @media (max-width: 768px) {
+                .modal-content {
+                    width: 95% !important;
+                }
+                .modal .modal-content > div {
+                    flex-direction: column !important;
+                }
+                .modal-right-section {
+                    margin-top: 20px;
+                }
+            }
+        `;
+        document.head.appendChild(mediaQuery);
+        
+        modal.appendChild(modalContent);
+        document.body.appendChild(modal);
+        
+        // Add event listeners
+        
+        // Close modal when clicking the X button
+        closeBtn.addEventListener('click', () => {
+            modal.remove();
+            mediaQuery.remove();
+        });
+        
+        // Close modal when clicking outside
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.remove();
+                mediaQuery.remove();
+            }
+        });
+        
+        // Toggle JSON display
+        jsonToggleBtn.addEventListener('click', () => {
+            if (jsonPreview.classList.contains('hidden')) {
+                jsonPreview.classList.remove('hidden');
+                jsonToggleBtn.innerHTML = '<i class="fas fa-code"></i> Ẩn JSON';
+            } else {
+                jsonPreview.classList.add('hidden');
+                jsonToggleBtn.innerHTML = '<i class="fas fa-code"></i> Hiển thị JSON';
+            }
+        });
+        
+        // Download JSON
+        downloadJsonBtn.addEventListener('click', () => {
+            const jsonString = JSON.stringify(block, null, 2);
+            const blob = new Blob([jsonString], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `thong_tin_khoi_${block.id}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+        
+        // Download QR code
+        downloadQrBtn.addEventListener('click', () => {
+            // Find the canvas element in the QR container
+            const canvas = qrContainer.querySelector('canvas');
+            if (!canvas) {
+                notification.error('Không thể tải mã QR');
+                return;
+            }
+            
+            // Convert canvas to PNG and download
+            const url = canvas.toDataURL('image/png');
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `qr_khoi_${block.id}.png`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        });
 
+        // If opened from detail modal, adjust the z-index for proper stacking
+        if (fromDetailModal) {
+            modal.style.zIndex = 1200; // Higher z-index to appear on top of the details modal
+        }
+    }
+    
     // Hàm xóa khối theo ID
     async function deleteBlock(id) {
         try {
             const blockToDelete = allBlocks.find(block => block.id === id);
             
             // Delete from backend
-            await deleteBlock(id);
+            await global_deleteBlock(id);
             
             // Reload blocks
             await loadAndDisplayBlocks();

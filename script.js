@@ -196,7 +196,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         try {
             // Save to storage and get back data with ID
-            currentBlockData = addBlock(blockData);
+            currentBlockData = await addBlock(blockData);
             
             // Update displayed ID
             currentId = currentBlockData.id;

@@ -42,7 +42,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (success) {
             notification.success('Đăng nhập thành công!');
             
-            window.location.href = '/index.html';
+            setTimeout(() => {
+                window.location.href = '/index.html';
+            }, 500);
         } else {
             showError('Tên đăng nhập hoặc mật khẩu không đúng');
             passwordInput.value = '';
