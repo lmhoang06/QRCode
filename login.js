@@ -42,10 +42,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (success) {
             notification.success('Đăng nhập thành công!');
             
-            // Redirect after short delay
-            setTimeout(() => {
-                window.location.href = '/index.html';
-            }, 1000);
+            window.location.href = '/index.html';
         } else {
             showError('Tên đăng nhập hoặc mật khẩu không đúng');
             passwordInput.value = '';
