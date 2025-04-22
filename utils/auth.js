@@ -3,7 +3,9 @@
  */
 
 // API base URL
-const API_BASE_URL = 'https://guides.viegrand.site/api2/api';
+// const API_BASE_URL = 'https://guides.viegrand.site/api2/api';
+// const API_BASE_URL = 'http://localhost:5000'; // Local development URL
+const API_BASE_URL = 'https://waiedu-backend-a7b30a59c299.herokuapp.com'; // Production URL
 
 // Auth constants
 const AUTH_KEY = 'webqr_auth';
@@ -14,7 +16,7 @@ let useApiAuth = true;
 
 async function checkApiAvailability() {
     try {
-        const response = await fetch(`${API_BASE_URL}/auth`);
+        const response = await fetch(`${API_BASE_URL}/auth/`);
         return response.ok || response.status === 401; // Consider 401 as available
     } catch (error) {
         console.error("Auth API unavailable:", error);
@@ -70,7 +72,7 @@ export async function login(username, password) {
     }
     
     try {
-        const response = await fetch(`${API_BASE_URL}/auth`, {
+        const response = await fetch(`${API_BASE_URL}/auth/`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username, password })

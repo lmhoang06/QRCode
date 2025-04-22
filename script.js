@@ -161,7 +161,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     // Sửa phần tạo QR code khi submit form
-    generateQrBtn.addEventListener('click', (e) => {
+    generateQrBtn.addEventListener('click', async (e) => {
         e.preventDefault();
         hideError();
         
@@ -177,7 +177,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         // Collect all form data
-        const blockData = collectFormData();
+        const blockData = {
+            ...collectFormData(),
+            id: currentId
+        };
         
         // Check for duplicates (only basic fields)
         const basicData = {
@@ -186,7 +189,7 @@ document.addEventListener('DOMContentLoaded', () => {
             canNang: blockData.canNang
         };
         
-        if (isDuplicateBlock(basicData)) {
+        if (await isDuplicateBlock(basicData)) {
             showError('Khối với thông tin này đã tồn tại.');
             return;
         }

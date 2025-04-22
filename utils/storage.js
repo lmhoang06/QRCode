@@ -3,7 +3,9 @@
  */
 
 // API base URL
-const API_BASE_URL = 'https://guides.viegrand.site/api2/api';
+// const API_BASE_URL = 'https://guides.viegrand.site/api2/api';
+const API_BASE_URL = 'https://waiedu-backend-a7b30a59c299.herokuapp.com'; // Production URL
+// const API_BASE_URL = 'http://localhost:5000'; // Localhost for development
 
 // Fallback to localStorage if API is unavailable
 let useLocalStorage = false;
@@ -11,7 +13,7 @@ let useLocalStorage = false;
 // Check if API is available
 async function checkApiAvailability() {
     try {
-        const response = await fetch(`${API_BASE_URL}/blocks`, { 
+        const response = await fetch(`${API_BASE_URL}/blocks/`, { 
             method: 'GET',
             headers: { 'Content-Type': 'application/json' }
         });
@@ -35,7 +37,7 @@ export async function getBlocksData() {
     }
     
     try {
-        const response = await fetch(`${API_BASE_URL}/blocks`);
+        const response = await fetch(`${API_BASE_URL}/blocks/`);
         
         if (!response.ok) {
             throw new Error(`API error: ${response.status}`);
@@ -85,7 +87,7 @@ export async function addBlock(blockData) {
     }
     
     try {
-        const response = await fetch(`${API_BASE_URL}/blocks`, {
+        const response = await fetch(`${API_BASE_URL}/blocks/`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(blockData)
@@ -123,7 +125,7 @@ export async function updateBlock(blockData) {
     }
     
     try {
-        const response = await fetch(`${API_BASE_URL}/blocks`, {
+        const response = await fetch(`${API_BASE_URL}/blocks/`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(blockData)
@@ -148,7 +150,7 @@ export async function deleteBlock(blockId) {
     }
     
     try {
-        const response = await fetch(`${API_BASE_URL}/blocks`, {
+        const response = await fetch(`${API_BASE_URL}/blocks/`, {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id: blockId })
@@ -173,7 +175,7 @@ export async function deleteMultipleBlocks(blockIds) {
     }
     
     try {
-        const response = await fetch(`${API_BASE_URL}/blocks`, {
+        const response = await fetch(`${API_BASE_URL}/blocks/`, {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ ids: blockIds })

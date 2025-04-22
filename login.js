@@ -22,7 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
     usernameInput.focus();
     
     // Login function
-    function handleLogin() {
+    async function handleLogin() {
         // Hide error message
         loginError.classList.add('hidden');
         
@@ -37,14 +37,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         // Try to login
-        const success = login(username, password);
+        const success = await login(username, password);
         
         if (success) {
             notification.success('Đăng nhập thành công!');
             
             // Redirect after short delay
             setTimeout(() => {
-                window.location.href = 'index.html';
+                window.location.href = '/index.html';
             }, 1000);
         } else {
             showError('Tên đăng nhập hoặc mật khẩu không đúng');
