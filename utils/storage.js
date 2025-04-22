@@ -9,6 +9,7 @@ const API_BASE_URL = 'https://waiedu-backend-a7b30a59c299.herokuapp.com'; // Pro
 
 // Fallback to localStorage if API is unavailable
 let useLocalStorage = false;
+let storageInitialized = false;
 
 // Check if API is available
 async function checkApiAvailability() {
@@ -26,9 +27,21 @@ async function checkApiAvailability() {
 
 // Initialize storage
 (async function() {
-    useLocalStorage = !(await checkApiAvailability());
-    console.log(`Using ${useLocalStorage ? 'localStorage' : 'API'} for storage`);
+    try {
+        useLocalStorage = !(await checkApiAvailability());
+        console.log(`Using ${useLocalStorage ? 'localStorage' : 'API'} for storage`);
+        storageInitialized = true;
+    } catch (error) {
+        console.error("Error during storage initialization:", error);
+        useLocalStorage = true; // Default to localStorage on error
+        storageInitialized = true;
+    }
 })();
+
+// Check if initialization is complete
+export function isStorageInitialized() {
+    return storageInitialized;
+}
 
 // Retrieve blocks data from API or localStorage
 export async function getBlocksData() {

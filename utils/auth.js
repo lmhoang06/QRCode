@@ -13,6 +13,7 @@ const SESSION_DURATION = 3600000; // 1 hour in milliseconds
 
 // Check if API is available
 let useApiAuth = true;
+let authInitialized = false;
 
 async function checkApiAvailability() {
     try {
@@ -26,9 +27,21 @@ async function checkApiAvailability() {
 
 // Initialize auth
 (async function() {
-    useApiAuth = await checkApiAvailability();
-    console.log(`Using ${useApiAuth ? 'API' : 'local'} auth`);
+    try {
+        useApiAuth = await checkApiAvailability();
+        console.log(`Using ${useApiAuth ? 'API' : 'local'} auth`);
+        authInitialized = true;
+    } catch (error) {
+        console.error("Error during auth initialization:", error);
+        useApiAuth = false; // Default to local auth on error
+        authInitialized = true;
+    }
 })();
+
+// Check if initialization is complete
+export function isAuthInitialized() {
+    return authInitialized;
+}
 
 // Check if user is logged in
 export function checkAuth() {

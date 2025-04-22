@@ -96,7 +96,7 @@ export class BlockForm {
         this.errorMessageDiv.classList.add('hidden');
     }
     
-    handleSubmit(e) {
+    async handleSubmit(e) {
         e.preventDefault();
         this.hideError();
         
@@ -112,13 +112,13 @@ export class BlockForm {
         }
         
         // Check for duplicates
-        if (isDuplicateBlock(this.formData)) {
+        if (await isDuplicateBlock(this.formData)) {
             this.showError('Khối với thông tin này đã tồn tại.');
             return;
         }
         
         // Add block and get back the data with ID
-        const savedBlock = addBlock(this.formData);
+        const savedBlock = await addBlock(this.formData);
         
         // Update ID display with permanent ID
         this.currentId = savedBlock.id;

@@ -173,11 +173,19 @@
     <!-- Check authentication before loading main script -->
     <script src="utils/auth.js" type="module"></script>
     <script>
-        // Simple auth check to redirect if not logged in
+        // Auth check to redirect if not logged in
         import('./utils/auth.js').then(auth => {
-            if (!auth.checkAuth()) {
-                window.location.href = 'login.html';
-            }
+            // Ensure initialization is complete before checking auth
+            const checkAndRedirect = () => {
+                if (auth.isAuthInitialized()) {
+                    if (!auth.checkAuth()) {
+                        window.location.href = 'login.html';
+                    }
+                } else {
+                    setTimeout(checkAndRedirect, 100); // Check again in 100ms
+                }
+            };
+            checkAndRedirect();
         });
     </script>
     
